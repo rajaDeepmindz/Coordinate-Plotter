@@ -581,8 +581,8 @@ export default function App(): JSX.Element {
   const [confMin, setConfMin] = useState<number>(0);
   const [confMax, setConfMax] = useState<number>(1);
 
-  const [minMaskArea, setMinMaskArea] = useState<number | null>(0);
-  const [maxMaskArea, setMaxMaskArea] = useState<number | null>(1);
+  // const [minMaskArea, setMinMaskArea] = useState<number | null>(0);
+  // const [maxMaskArea, setMaxMaskArea] = useState<number | null>(1);
 
   const [showBboxes, setShowBboxes] = useState<boolean>(false);
   const [showLines, setShowLines] = useState<boolean>(true);
@@ -739,12 +739,12 @@ export default function App(): JSX.Element {
     const minConf = Math.min(...confidences);
     const maxConf = Math.max(...confidences);
 
-    const maskAreas = result.points
-      .map((p) => p.area)
-      .filter((a) => a !== null) as number[];
+    // const maskAreas = result.points
+    //   .map((p) => p.area)
+    //   .filter((a) => a !== null) as number[];
 
-    setMaxMaskArea(maskAreas.length > 0 ? Math.max(...maskAreas) : null);
-    setMinMaskArea(maskAreas.length > 0 ? Math.min(...maskAreas) : null);
+    // setMaxMaskArea(maskAreas.length > 0 ? Math.max(...maskAreas) : null);
+    // setMinMaskArea(maskAreas.length > 0 ? Math.min(...maskAreas) : null);
 
     setConfMin(minConf);
     setConfMax(maxConf);
