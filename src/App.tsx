@@ -1,14 +1,16 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, type JSX } from "react";
 import {
+  parseData,
+  parseSegments,
+  computeStats,
   type DataPoint,
   type LineSegment,
   type Pan,
   type Tooltip,
   type Stats,
-  parseData,
-  parseSegments,
-  computeStats,
 } from "./service/Cordicate-service";
+// if file is SubComponents.tsx
+
 
 /* ── Font loader ─────────────────────────────────────────────────────────────── */
 function LightFontLink(): null {
@@ -402,7 +404,7 @@ export default function App(): JSX.Element {
   const someChecked = selSize > 0 && selSize < dataPoints.length;
   const activePoint: DataPoint | null = activeIdx >= 0 ? dataPoints[activeIdx] : null;
 
-  const PRESETS: [number, number, string][] = [[0, 1, "ALL"], [0, 0.5, "LOW"], [0.5, 1, "HIGH"], [0.8, 1, "TOP"]];
+  // const PRESETS: [number, number, string][] = [[0, 1, "ALL"], [0, 0.5, "LOW"], [0.5, 1, "HIGH"], [0.8, 1, "TOP"]];
 
   // ── shared style tokens ──────────────────────────────────────────────────────
   const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono',monospace" };
@@ -521,10 +523,7 @@ export default function App(): JSX.Element {
           </div>
 
           <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-            {PRESETS.map(([lo, hi, lbl]) => {
-              const on = Math.abs(confMin - lo) < 0.001 && Math.abs(confMax - hi) < 0.001;
-              return <button key={lbl} className={`pst ${on ? "on" : ""}`} onClick={() => { setConfMin(lo); setConfMax(hi); }}>{lbl}</button>;
-            })}
+            
           </div>
 
           {divider}
