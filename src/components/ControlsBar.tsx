@@ -54,6 +54,7 @@ export function ControlsBar({
   showOnlyRejected, setShowOnlyRejected,
 }: Props): JSX.Element {
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
 
   const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,6 +68,39 @@ export function ControlsBar({
     reader.readAsDataURL(file);
   };
 
+  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const video = document.createElement("video");
+  video.src = URL.createObjectURL(file);
+  video.crossOrigin = "anonymous";
+  video.muted = true;
+
+  // ✅ wait for metadata (dimensions ready)
+  video.onloadedmetadata = () => {
+    video.currentTime = 0.1; // 🔥 move to first frame
+  };
+
+  // ✅ when frame is ready
+  video.onseeked = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const img = new Image();
+    img.src = canvas.toDataURL("image/png");
+
+    img.onload = () => {
+      setBgImage(img); // ✅ NOW WORKS
+    };
+  };
+};
   return (
     <div
       style={{
@@ -76,14 +110,39 @@ export function ControlsBar({
         boxShadow: "0 -1px 4px rgba(0,0,0,0.04)",
       }}
     >
-      {/* BG image */}
-      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-        <button className="btn btn-g" onClick={() => fileRef.current?.click()}>📁 BG Image</button>
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleBgUpload} />
-        {bgImage && (
-          <button className="btn btn-d" onClick={() => setBgImage(null)}>🗑 Remove</button>
-        )}
-      </div>
+      {/* BG image + video */}
+<div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+  {/* Image Upload */}
+  <button className="btn btn-g" onClick={() => fileRef.current?.click()}>
+    📁 BG Image
+  </button>
+  <input
+    ref={fileRef}
+    type="file"
+    accept="image/*"
+    style={{ display: "none" }}
+    onChange={handleBgUpload}
+  />
+
+  {/* 🎥 Video Upload */}
+  <button className="btn btn-g" onClick={() => videoRef.current?.click()}>
+    📹 BG Video
+  </button>
+  <input
+    ref={videoRef}
+    type="file"
+    accept="video/*"
+    style={{ display: "none" }}
+    onChange={handleVideoUpload}
+  />
+
+  {/* Remove */}
+  {bgImage && (
+    <button className="btn btn-d" onClick={() => setBgImage(null)}>
+      🗑 Remove
+    </button>
+  )}
+</div>
 
       <Divider />
 
