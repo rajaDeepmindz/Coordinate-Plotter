@@ -144,7 +144,7 @@ export function CanvasSection({
     <>
       <div
         style={{
-          flex: 1, position: "relative", overflow: "hidden", cursor: "crosshair",
+          flex: 1, position: "relative", overflow: "hidden", cursor: "crosshair",padding: 50,
         }}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}

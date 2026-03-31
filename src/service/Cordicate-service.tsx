@@ -1,3 +1,5 @@
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { fetchFile } from "@ffmpeg/util";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -405,3 +407,34 @@ export function computeStats(
     t1: dataPoints[dataPoints.length - 1].timestamp,
   };
 }
+
+const ffmpeg = new FFmpeg();
+export const convertToH264 = async (file : any) => {
+  if (!ffmpeg.loaded) {
+    await ffmpeg.load();
+  }
+
+  const inputName = "input.mp4";
+  const outputName = "output.mp4";
+
+  await ffmpeg.writeFile(inputName, await fetchFile(file));
+
+  // ✅ FIXED COMMAND
+  await ffmpeg.exec([
+    "-i", inputName,
+
+    // 🔥 VERY IMPORTANT
+    "-vcodec", "libx264",
+    "-pix_fmt", "yuv420p",     // ✅ browser compatible
+    "-movflags", "+faststart", // ✅ improves playback
+    "-preset", "ultrafast",
+
+    "-acodec", "aac",
+
+    outputName,
+  ]);
+
+  const data = await ffmpeg.readFile(outputName);
+
+  return new Blob([new Uint8Array(data as unknown as ArrayBuffer)], { type: "video/mp4" });
+};
