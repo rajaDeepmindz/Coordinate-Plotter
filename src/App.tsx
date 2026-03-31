@@ -266,13 +266,13 @@ export default function App(): JSX.Element {
       const gi = dataPoints.indexOf(filteredPoints[next]);
       setActiveIdx(gi);
       setSelectedRows(new Set([gi]));
-      const fp = filteredPoints[next],
-        canvas = canvasRef.current;
-      if (canvas)
-        setPan({
-          x: canvas.width / 2 - fp.center.x,
-          y: canvas.height / 2 - fp.center.y,
-        });
+      // const fp = filteredPoints[next],
+      //   canvas = canvasRef.current;
+      // if (canvas)
+      //   setPan({
+      //     x: canvas.width / 2 - fp.center.x,
+      //     y: canvas.height / 2 - fp.center.y,
+      //   });
     },
     [filteredPoints, dataPoints, activeIdx],
   );
