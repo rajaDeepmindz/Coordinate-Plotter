@@ -103,6 +103,12 @@ export default function App(): JSX.Element {
   const [areaAbsMin, setAreaAbsMin] = useState(0);
   const [areaAbsMax, setAreaAbsMax] = useState(0);
 
+  /* ── Bounding-box size filter (diagonal) ── */
+  const [bboxSizeMin, setBBoxSizeMin] = useState(0);
+  const [bboxSizeMax, setBBoxSizeMax] = useState(0);
+  const [bboxSizeAbsMin, setBBoxSizeAbsMin] = useState(0);
+  const [bboxSizeAbsMax, setBBoxSizeAbsMax] = useState(0);
+
   /* ── Visibility toggles ── */
   const [showBboxes, setShowBboxes] = useState(false);
   const [showLines, setShowLines] = useState(true);
@@ -141,15 +147,14 @@ export default function App(): JSX.Element {
   /* ── Derived: filtered points ── */
   const filteredPoints = useMemo<DataPoint[]>(
     () =>
-      dataPoints.filter(
-        (p) =>
-          p.confidence >= confMin &&
-          p.confidence <= confMax &&
-          (areaAbsMax === 0 ||
-            p.area === null ||
-            (p.area >= areaMin && p.area <= areaMax)) &&
-          (!showOnlyRejected || p.status === "Y"),
-      ),
+      dataPoints.filter((p) => {
+        const withinConf = p.confidence >= confMin && p.confidence <= confMax;
+        const withinArea = areaAbsMax === 0 || p.area === null || (p.area >= areaMin && p.area <= areaMax);
+        const s = p.bbox ? Math.hypot(Math.abs(p.bbox.x2 - p.bbox.x1), Math.abs(p.bbox.y2 - p.bbox.y1)) : null;
+        const withinSize = bboxSizeAbsMax === 0 || p.bbox === null || (s !== null && s >= bboxSizeMin && s <= bboxSizeMax);
+        const withinRejected = !showOnlyRejected || p.status === "Y";
+        return withinConf && withinArea && withinSize && withinRejected;
+      }),
     [
       dataPoints,
       confMin,
@@ -157,6 +162,9 @@ export default function App(): JSX.Element {
       areaMin,
       areaMax,
       areaAbsMax,
+      bboxSizeMin,
+      bboxSizeMax,
+      bboxSizeAbsMax,
       showOnlyRejected,
     ],
   );
@@ -206,6 +214,23 @@ export default function App(): JSX.Element {
       setAreaAbsMax(0);
       setAreaMin(0);
       setAreaMax(0);
+    }
+
+    // bounding-box diagonal sizes
+    const sizes = result.points
+      .map((p) => (p.bbox ? Math.hypot(Math.abs(p.bbox.x2 - p.bbox.x1), Math.abs(p.bbox.y2 - p.bbox.y1)) : null))
+      .filter((s): s is number => s !== null);
+    if (sizes.length > 0) {
+      const slo = Math.min(...sizes), shi = Math.max(...sizes);
+      setBBoxSizeAbsMin(slo);
+      setBBoxSizeAbsMax(shi);
+      setBBoxSizeMin(slo);
+      setBBoxSizeMax(shi);
+    } else {
+      setBBoxSizeAbsMin(0);
+      setBBoxSizeAbsMax(0);
+      setBBoxSizeMin(0);
+      setBBoxSizeMax(0);
     }
 
     setDataPoints(result.points);
@@ -438,6 +463,9 @@ export default function App(): JSX.Element {
             areaMin={areaMin}
             areaMax={areaMax}
             areaAbsMax={areaAbsMax}
+            bboxSizeMin={bboxSizeMin}
+            bboxSizeMax={bboxSizeMax}
+            bboxSizeAbsMax={bboxSizeAbsMax}
             showBboxes={showBboxes}
             showLines={showLines}
             showLabels={showLabels}
@@ -470,6 +498,12 @@ export default function App(): JSX.Element {
           areaAbsMax={areaAbsMax}
           setAreaMin={setAreaMin}
           setAreaMax={setAreaMax}
+          bboxSizeMin={bboxSizeMin}
+          bboxSizeMax={bboxSizeMax}
+          bboxSizeAbsMin={bboxSizeAbsMin}
+          bboxSizeAbsMax={bboxSizeAbsMax}
+          setBBoxSizeMin={setBBoxSizeMin}
+          setBBoxSizeMax={setBBoxSizeMax}
           showBboxes={showBboxes}
           setShowBboxes={setShowBboxes}
           showLines={showLines}

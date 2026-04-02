@@ -14,6 +14,7 @@ interface Props {
   lineSegments: LineSegment[];
   confMin: number; confMax: number;
   areaMin: number; areaMax: number; areaAbsMax: number;
+  bboxSizeMin: number; bboxSizeMax: number; bboxSizeAbsMax: number;
   showBboxes: boolean; showLines: boolean; showLabels: boolean;
   showOnlyRejected: boolean;
   pan: Pan; setPan: React.Dispatch<React.SetStateAction<Pan>>;
@@ -33,6 +34,7 @@ export function CanvasSection({
   canvasRef, bgImage,
   dataPoints, filteredPoints, lineSegments,
   confMin, confMax, areaMin, areaMax, areaAbsMax,
+  bboxSizeMin, bboxSizeMax, bboxSizeAbsMax,
   showBboxes, showLines, showLabels, showOnlyRejected,
   pan, setPan,
   selectedRows, setSelectedRows,
@@ -59,12 +61,14 @@ export function CanvasSection({
     drawLightCanvas({
       ctx, canvas, bgImage, dataPoints, lineSegments,
       confMin, confMax, areaMin, areaMax, areaAbsMax,
+      bboxSizeMin, bboxSizeMax, bboxSizeAbsMax,
       showBboxes, showLines, showLabels, showOnlyRejected,
       hoveredIdx, selectedRows, pan, activeIdx,
     });
   }, [
     bgImage, dataPoints, lineSegments,
     confMin, confMax, areaMin, areaMax, areaAbsMax,
+    bboxSizeMin, bboxSizeMax, bboxSizeAbsMax,
     showBboxes, showLines, showLabels, showOnlyRejected,
     hoveredIdx, selectedRows, pan, activeIdx, canvasRef,
   ]);

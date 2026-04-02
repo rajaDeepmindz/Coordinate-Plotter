@@ -22,6 +22,14 @@ interface Props {
   setAreaMin: (v: number) => void;
   setAreaMax: (v: number) => void;
 
+  /* bbox size filter (diagonal) */
+  bboxSizeMin?: number;
+  bboxSizeMax?: number;
+  bboxSizeAbsMin?: number;
+  bboxSizeAbsMax?: number;
+  setBBoxSizeMin?: (v: number) => void;
+  setBBoxSizeMax?: (v: number) => void;
+
   /* visibility toggles */
   showBboxes: boolean;
   setShowBboxes: (v: boolean) => void;
@@ -64,6 +72,12 @@ export function ControlsBar({
   areaAbsMax,
   setAreaMin,
   setAreaMax,
+  bboxSizeMin,
+  bboxSizeMax,
+  bboxSizeAbsMin,
+  bboxSizeAbsMax,
+  setBBoxSizeMin,
+  setBBoxSizeMax,
   showBboxes,
   setShowBboxes,
   showLines,
@@ -341,6 +355,31 @@ video.onseeked = () => {
           No area data
         </span>
       )}
+
+      {/* Bounding-box SIZE filter — shown when bbox data exists */}
+      {typeof bboxSizeAbsMax === "number" && bboxSizeAbsMax > 0 && setBBoxSizeMin && setBBoxSizeMax ? (
+        <>
+          <Divider />
+          <FilterSlider
+            label="SIZE"
+            labelColor="#d97706"
+            colorStart="#fb923c"
+            colorEnd="#f97316"
+            valueInputColor="#fb923c"
+            min={bboxSizeAbsMin ?? 0}
+            max={bboxSizeAbsMax ?? 0}
+            step={1}
+            valueMin={bboxSizeMin ?? 0}
+            valueMax={bboxSizeMax ?? 0}
+            onChange={(lo, hi) => {
+              setBBoxSizeMin?.(Math.round(lo));
+              setBBoxSizeMax?.(Math.round(hi));
+            }}
+            formatVal={(v) => String(Math.round(v))}
+            parseVal={(s) => parseInt(s)}
+          />
+        </>
+      ) : null}
 
       <Divider />
 

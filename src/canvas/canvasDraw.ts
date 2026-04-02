@@ -11,6 +11,9 @@ export interface DrawParams {
   areaMin: number;
   areaMax: number;
   areaAbsMax: number;
+  bboxSizeMin: number;
+  bboxSizeMax: number;
+  bboxSizeAbsMax: number;
   showBboxes: boolean;
   showLines: boolean;
   showLabels: boolean;
@@ -25,6 +28,7 @@ export function drawLightCanvas(p: DrawParams): void {
   const {
     ctx, canvas, bgImage, dataPoints, lineSegments,
     confMin, confMax, areaMin, areaMax, areaAbsMax,
+    bboxSizeMin, bboxSizeMax, bboxSizeAbsMax,
     showBboxes, showLines, showLabels, showOnlyRejected,
     hoveredIdx, selectedRows, pan, activeIdx,
   } = p;
@@ -57,11 +61,14 @@ export function drawLightCanvas(p: DrawParams): void {
   }
 
   /* ── Filter points ── */
-  const fp = dataPoints.filter(pt =>
-    pt.confidence >= confMin && pt.confidence <= confMax &&
-    (areaAbsMax === 0 || pt.area === null || (pt.area >= areaMin && pt.area <= areaMax)) &&
-    (!showOnlyRejected || pt.status === "Y")
-  );
+  const fp = dataPoints.filter((pt) => {
+    const withinConf = pt.confidence >= confMin && pt.confidence <= confMax;
+    const withinArea = areaAbsMax === 0 || pt.area === null || (pt.area >= areaMin && pt.area <= areaMax);
+    const s = pt.bbox ? Math.hypot(Math.abs(pt.bbox.x2 - pt.bbox.x1), Math.abs(pt.bbox.y2 - pt.bbox.y1)) : null;
+    const withinSize = bboxSizeAbsMax === 0 || pt.bbox === null || (s !== null && s >= bboxSizeMin && s <= bboxSizeMax);
+    const withinRejected = !showOnlyRejected || pt.status === "Y";
+    return withinConf && withinArea && withinSize && withinRejected;
+  });
 
   /* ── Trail lines ── */
   if (showLines && fp.length > 1) {
@@ -95,7 +102,9 @@ export function drawLightCanvas(p: DrawParams): void {
 
   /* ── Selected highlight bboxes ── */
   if (selectedRows.size > 0) {
-    selectedRows.forEach(idx => {
+    const fpIdx = new Set(fp.map((p) => dataPoints.indexOf(p)));
+    selectedRows.forEach((idx) => {
+      if (!fpIdx.has(idx)) return;
       const pt = dataPoints[idx];
       if (!pt?.bbox) return;
       ctx.strokeStyle = "rgba(245,158,11,0.9)"; ctx.lineWidth = 2;
