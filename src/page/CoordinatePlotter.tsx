@@ -13,6 +13,8 @@ import {
   type DataPoint,
   type LineSegment,
   type Pan,
+  type ManualPoint,
+  type ManualLine,
 } from "../service/Cordicate-service";
 import { CanvasSection } from "../components/CanvasSection";
 import { BottomPanel } from "../components/BottomPanel";
@@ -81,6 +83,8 @@ export default function CoordinatePlotter(): JSX.Element {
   const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([]);
   const [lineSegments, setLineSegments] = useState<LineSegment[]>([]);
+  const [manualPoints, setManualPoints] = useState<ManualPoint[]>([]);
+  const [manualLines, setManualLines] = useState<ManualLine[]>([]);
 
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -107,7 +111,7 @@ export default function CoordinatePlotter(): JSX.Element {
   const [showSegments, setShowSegments] = useState(true);
   const [showOnlyRejected, setShowOnlyRejected] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"segments" | "data" | "grid">("segments");
+  const [activeTab, setActiveTab] = useState<"segments" | "data" | "grid" | "add">("segments");
   const [segInput, setSegInput] = useState("");
   const [dataInput, setDataInput] = useState("");
 
@@ -141,6 +145,12 @@ export default function CoordinatePlotter(): JSX.Element {
   const stats = useMemo(() => computeStats(dataPoints, filteredPoints), [dataPoints, filteredPoints]);
   const activePoint: DataPoint | null = activeIdx >= 0 ? dataPoints[activeIdx] : null;
   const drawSegments = showSegments ? lineSegments : ([] as LineSegment[]);
+
+  // When the Add tab is active we want the main canvas to show only manual
+  // items — hide parsed data/segments so the user focuses on the added geometry.
+  const dataPointsToRender = activeTab === "add" ? ([] as DataPoint[]) : dataPoints;
+  const filteredPointsToRender = activeTab === "add" ? ([] as DataPoint[]) : filteredPoints;
+  const lineSegmentsToRender = activeTab === "add" ? ([] as LineSegment[]) : drawSegments;
 
   const parseAndPlot = (): void => {
     const result = parseData(dataInput);
@@ -177,6 +187,8 @@ export default function CoordinatePlotter(): JSX.Element {
     setActiveIdx(-1);
     setLastClicked(-1);
   };
+
+  // manual points/lines are managed in `manualPoints` and `manualLines` state
 
   const clearData = (): void => {
     setDataInput(""); setDataPoints([]); setSelectedRows(new Set());
@@ -325,9 +337,11 @@ export default function CoordinatePlotter(): JSX.Element {
         <CanvasSection
           canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
           bgImage={bgImage}
-          dataPoints={dataPoints}
-          filteredPoints={filteredPoints}
-          lineSegments={drawSegments}
+          dataPoints={dataPointsToRender}
+          filteredPoints={filteredPointsToRender}
+          lineSegments={lineSegmentsToRender}
+          manualPoints={manualPoints}
+          manualLines={manualLines}
           confMin={confMin}
           confMax={confMax}
           areaMin={areaMin}
@@ -349,8 +363,8 @@ export default function CoordinatePlotter(): JSX.Element {
           lastClicked={lastClicked}
           setLastClicked={setLastClicked}
           activePoint={activePoint}
-          filteredCount={filteredPoints.length}
-          totalCount={dataPoints.length}
+          filteredCount={filteredPointsToRender.length}
+          totalCount={dataPointsToRender.length}
           onNavPoint={navPoint}
         />
       </div>
@@ -418,6 +432,10 @@ export default function CoordinatePlotter(): JSX.Element {
           areaMax={areaMax}
           areaAbsMax={areaAbsMax}
           showOnlyRejected={showOnlyRejected}
+          manualPoints={manualPoints}
+          manualLines={manualLines}
+          setManualPoints={setManualPoints}
+          setManualLines={setManualLines}
         />
       </div>
     </div>

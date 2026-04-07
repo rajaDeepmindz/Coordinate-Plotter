@@ -14,6 +14,8 @@ interface Props {
   dataPoints: DataPoint[];
   filteredPoints: DataPoint[];
   lineSegments: LineSegment[];
+  manualPoints?: import("../service/Cordicate-service").ManualPoint[];
+  manualLines?: import("../service/Cordicate-service").ManualLine[];
   confMin: number;
   confMax: number;
   areaMin: number;
@@ -52,6 +54,8 @@ export function CanvasSection({
   dataPoints,
   filteredPoints,
   lineSegments,
+  manualPoints,
+  manualLines,
   confMin,
   confMax,
   areaMin,
@@ -100,6 +104,8 @@ export function CanvasSection({
       bgImage,
       dataPoints,
       lineSegments,
+      manualPoints,
+      manualLines,
       confMin,
       confMax,
       areaMin,
@@ -119,6 +125,7 @@ export function CanvasSection({
     });
   }, [
     bgImage, dataPoints, lineSegments,
+    manualPoints, manualLines,
     confMin, confMax, areaMin, areaMax, areaAbsMax,
     bboxSizeMin, bboxSizeMax, bboxSizeAbsMax,
     showBboxes, showLines, showLabels, showOnlyRejected,

@@ -7,8 +7,9 @@ import type {
 import { SegmentsTab } from "./tabs/SegmentsTab";
 import { DataInputTab } from "./tabs/DataInputTab";
 import { GridTab } from "./tabs/GridTab";
+import { AddPointTab } from "./tabs/AddPointTab";
 
-type Tab = "segments" | "data" | "grid";
+type Tab = "segments" | "data" | "grid" | "add";
 
 interface Props {
   /* tab state */
@@ -48,6 +49,10 @@ interface Props {
   areaMax: number;
   areaAbsMax: number;
   showOnlyRejected: boolean;
+  manualPoints?: import("../service/Cordicate-service").ManualPoint[];
+  manualLines?: import("../service/Cordicate-service").ManualLine[];
+  setManualPoints?: (pts: import("../service/Cordicate-service").ManualPoint[]) => void;
+  setManualLines?: (lines: import("../service/Cordicate-service").ManualLine[]) => void;
 }
 
 export function BottomPanel(props: Props): JSX.Element {
@@ -62,11 +67,13 @@ export function BottomPanel(props: Props): JSX.Element {
     confMin, confMax, areaMin, areaMax, areaAbsMax,
     showOnlyRejected,
   } = props;
+  const { manualPoints, manualLines, setManualPoints, setManualLines } = props as any;
 
   const tabs: [Tab, string][] = [
     ["segments", "📐 Segments"],
     ["data", "📋 Data Input"],
     ["grid", `📊 Grid${dataPoints.length ? ` · ${dataPoints.length}` : ""}`],
+    ["add", `➕ Add`],
   ];
 
   return (
@@ -133,6 +140,14 @@ export function BottomPanel(props: Props): JSX.Element {
           areaMax={areaMax}
           areaAbsMax={areaAbsMax}
           showOnlyRejected={showOnlyRejected}
+        />
+      )}
+      {activeTab === "add" && (
+        <AddPointTab
+          manualPoints={manualPoints}
+          manualLines={manualLines}
+          setManualPoints={setManualPoints}
+          setManualLines={setManualLines}
         />
       )}
       

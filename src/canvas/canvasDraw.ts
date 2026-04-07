@@ -1,4 +1,4 @@
-import type { DataPoint, LineSegment, Pan } from "../service/Cordicate-service";
+import type { DataPoint, LineSegment, Pan, ManualPoint, ManualLine } from "../service/Cordicate-service";
 
 export interface DrawParams {
   ctx: CanvasRenderingContext2D;
@@ -14,6 +14,8 @@ export interface DrawParams {
   bboxSizeMin: number;
   bboxSizeMax: number;
   bboxSizeAbsMax: number;
+  manualPoints?: ManualPoint[];
+  manualLines?: ManualLine[];
   showBboxes: boolean;
   showLines: boolean;
   showLabels: boolean;
@@ -31,6 +33,7 @@ export function drawLightCanvas(p: DrawParams): void {
     bboxSizeMin, bboxSizeMax, bboxSizeAbsMax,
     showBboxes, showLines, showLabels, showOnlyRejected,
     hoveredIdx, selectedRows, pan, activeIdx,
+    manualPoints, manualLines,
   } = p;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -121,7 +124,7 @@ export function drawLightCanvas(p: DrawParams): void {
     const isHov = gi === hoveredIdx, isSel = selectedRows.has(gi), isActive = gi === activeIdx;
     const r = isHov || isActive ? 7 : isSel ? 5.5 : 4;
     const accepted = pt.status === "N";
-    const color = accepted ? "#16a34a" : "#dc2626";
+    const color = (pt as any).color ?? (accepted ? "#16a34a" : "#dc2626");
     const glowColor = accepted ? "rgba(22,163,74,0.15)" : "rgba(220,38,38,0.15)";
 
     if (isHov || isActive) {
@@ -148,16 +151,38 @@ export function drawLightCanvas(p: DrawParams): void {
     }
   });
 
+    /* ── Manual points (from Add tab) ── */
+    if (manualPoints && manualPoints.length) {
+      manualPoints.forEach((m) => {
+        if (m.visible === false) return;
+        const r = 6;
+        ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = m.color; ctx.fill();
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.2; ctx.stroke();
+      });
+    }
+
   /* ── Line segments ── */
   if (lineSegments.length) {
     const n = lineSegments.length;
     lineSegments.forEach((seg, i) => {
       ctx.beginPath(); ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2);
-      ctx.strokeStyle =
+      const defaultStroke =
         i === 0 ? "rgba(5,150,105,0.85)" :
         i === n - 1 ? "rgba(220,38,38,0.85)" :
         "rgba(217,119,6,0.8)";
+      ctx.strokeStyle = (seg as any).color ?? defaultStroke;
       ctx.lineWidth = 2.5; ctx.stroke();
+    });
+  }
+
+  /* ── Manual line segments (from Add tab) ── */
+  if (manualLines && manualLines.length) {
+    manualLines.forEach((m) => {
+      if (m.visible === false) return;
+      ctx.beginPath(); ctx.moveTo(m.x1, m.y1); ctx.lineTo(m.x2, m.y2);
+      ctx.strokeStyle = m.color ?? "rgba(96,165,250,0.9)";
+      ctx.lineWidth = 2.5; ctx.setLineDash([]); ctx.stroke();
     });
   }
 

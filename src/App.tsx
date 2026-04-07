@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
-import CoordinatePlotter from "./page/CoordinatePlotter";
 import { DrawingCanvas } from "./components/DrawingCanvas";
+import CoordinatePlotter from "./page/CoordinatePlotter";
 
 function App() {
   return (

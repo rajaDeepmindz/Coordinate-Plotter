@@ -28,6 +28,7 @@ export interface DataPoint {
   area: number | null;
   description: string;
   relativeTime: number;
+  color?: string;
 }
 
 export interface LineSegment {
@@ -35,6 +36,25 @@ export interface LineSegment {
   y1: number;
   x2: number;
   y2: number;
+  color?: string;
+}
+
+export interface ManualPoint {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  visible?: boolean;
+}
+
+export interface ManualLine {
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  color?: string;
+  visible?: boolean;
 }
 
 export interface ParseResult {
@@ -328,7 +348,7 @@ export function drawCanvas({
     const isActive = gi === activeIdx;
     const r = isHov || isActive ? 8 : isSel ? 6 : 4;
     const accepted = p.status === "N";
-    const color = accepted ? "#22c55e" : "#ef4444";
+    const color = p.color ?? (accepted ? "#22c55e" : "#ef4444");
     const glow = accepted ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)";
 
     if (isHov || isActive) {
@@ -368,12 +388,13 @@ export function drawCanvas({
       ctx.beginPath();
       ctx.moveTo(seg.x1, seg.y1);
       ctx.lineTo(seg.x2, seg.y2);
-      ctx.strokeStyle =
+      const defaultStroke =
         i === 0
           ? "rgba(0,230,118,0.9)"
           : i === n - 1
             ? "rgba(255,100,100,0.9)"
             : "rgba(250,204,21,0.85)";
+      ctx.strokeStyle = seg.color ?? defaultStroke;
       ctx.lineWidth = 2.5;
       ctx.stroke();
     });
