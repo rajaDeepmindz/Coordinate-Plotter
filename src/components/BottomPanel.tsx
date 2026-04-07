@@ -135,6 +135,7 @@ export function BottomPanel(props: Props): JSX.Element {
           showOnlyRejected={showOnlyRejected}
         />
       )}
+      
     </div>
   );
 }
