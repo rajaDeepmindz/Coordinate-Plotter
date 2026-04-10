@@ -1,8 +1,9 @@
+import { CloudCog } from "lucide-react";
 import { useRef, useEffect, useCallback, useState, type JSX } from "react";
 
 type Tool = "pen" | "brush" | "eraser" | "line" | "rect" | "circle" | "arrow" | "text" | "fill";
 
-const PALETTE = ["#1e293b","#e24b4a","#f97316","#eab308","#22c55e","#3b82f6","#8b5cf6","#ec4899","#ffffff","#94a3b8"];
+const PALETTE = ["#1e293b", "#e24b4a", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff", "#94a3b8"];
 
 export function DrawingCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -15,10 +16,14 @@ export function DrawingCanvas() {
   const textInputRef = useRef<HTMLInputElement | null>(null);
 
   const [tool, setToolState] = useState<Tool>("pen");
+  console.log("Current Tool:", tool);
   const [color, setColorState] = useState("#1e293b");
   const [size, setSize] = useState(4);
   const [opacity, setOpacity] = useState(100);
   const [pos, setPos] = useState({ x: 0, y: 0 });
+  
+  // New state for showing dimensions
+  const [dimensions, setDimensions] = useState<{ w: number; h: number } | null>(null);
 
   const getCtx = () => canvasRef.current?.getContext("2d") ?? null;
 
@@ -32,7 +37,11 @@ export function DrawingCanvas() {
   const restoreFromDataURL = (url: string) => {
     const ctx = getCtx(); if (!ctx || !canvasRef.current) return;
     const img = new Image(); img.src = url;
-    img.onload = () => ctx.drawImage(img, 0, 0);
+    img.onload = () => {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+        ctx.drawImage(img, 0, 0);
+    };
   };
 
   const undo = () => {
@@ -175,6 +184,15 @@ export function DrawingCanvas() {
       applyCtxStyle(ctx);
       ctx.beginPath();
       const { x: sx, y: sy } = startRef.current;
+      
+      // Calculate and Update dimensions for UI
+      if (tool === "rect" || tool === "circle") {
+          setDimensions({
+              w: Math.abs(Math.round(x - sx)),
+              h: Math.abs(Math.round(y - sy))
+          });
+      }
+
       if (tool === "line") { ctx.moveTo(sx,sy); ctx.lineTo(x,y); ctx.stroke(); }
       else if (tool === "rect") { ctx.strokeRect(sx, sy, x-sx, y-sy); }
       else if (tool === "circle") {
@@ -188,6 +206,7 @@ export function DrawingCanvas() {
   const handlePointerUp = () => {
     if (!drawingRef.current) return;
     drawingRef.current = false;
+    setDimensions(null); // Clear dimensions
     getCtx()!.globalAlpha = 1;
     saveState();
   };
@@ -279,19 +298,36 @@ export function DrawingCanvas() {
         ))}
       </div>
 
-      {/* Canvas */}
-      <canvas
-        ref={canvasRef}
-        className="flex-1 block w-full"
-        style={{ cursor: tool === "eraser" ? "cell" : tool === "text" ? "text" : "crosshair" }}
-        onMouseDown={handlePointerDown}
-        onMouseMove={handlePointerMove}
-        onMouseUp={handlePointerUp}
-        onMouseLeave={handlePointerUp}
-        onTouchStart={handlePointerDown}
-        onTouchMove={handlePointerMove}
-        onTouchEnd={handlePointerUp}
-      />
+      {/* Canvas Area with Relative wrapper for Floating Label */}
+      <div className="relative flex-1 overflow-hidden">
+        {/* <canvas
+            ref={canvasRef}
+            className="block w-full h-full"
+            style={{ cursor: tool === "eraser" ? "cell" : tool === "text" ? "text" : "crosshair" }}
+            onMouseDown={handlePointerDown}
+            onMouseMove={handlePointerMove}
+            onMouseUp={handlePointerUp}
+            onMouseLeave={handlePointerUp}
+            onTouchStart={handlePointerDown}
+            onTouchMove={handlePointerMove}
+            onTouchEnd={handlePointerUp}
+        /> */}
+
+        {/* FLOATING DIMENSION LABEL */}
+        {drawingRef.current && (tool === "rect" || tool === "circle") && dimensions && (
+            <div 
+                className="absolute pointer-events-none bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow-lg font-mono z-50 flex items-center gap-1"
+                style={{ 
+                    left: pos.x + 15, 
+                    top: pos.y + 15 
+                }}
+            >
+                <span className="opacity-70">W</span>{dimensions.w} 
+                <span className="mx-0.5 opacity-50">×</span> 
+                <span className="opacity-70">H</span>{dimensions.h}
+            </div>
+        )}
+      </div>
 
       {/* Status bar */}
       <div className="flex items-center gap-3 px-3 py-1.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-400 font-mono">

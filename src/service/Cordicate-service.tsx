@@ -16,6 +16,8 @@ export interface BBox {
 }
 
 export interface DataPoint {
+  width: any;
+  height: any;
   frameNumber: string;
   timestamp: string;
   timestampSec: number;

@@ -204,28 +204,41 @@ export default function CoordinatePlotter(): JSX.Element {
   };
 
   const clearSegments = (): void => { setLineSegments([]); setSegInput(""); };
+const navPoint = useCallback(
+  (dir: "up" | "down" | "left" | "right"): void => {
+    // 1. If no points are filtered/available, just Pan the empty canvas
+    if (!filteredPoints.length) {
+      const scrollStep = 60; // Standard jump distance
+      setPan((prev) => ({
+        x: prev.x + (dir === "left" ? scrollStep : dir === "right" ? -scrollStep : 0),
+        y: prev.y + (dir === "up" ? scrollStep : dir === "down" ? -scrollStep : 0),
+      }));
+      return;
+    }
 
-  const navPoint = useCallback(
-    (dir: "up" | "down" | "left" | "right"): void => {
-      if (!filteredPoints.length) {
-        const s = 60;
-        setPan((p) => ({
-          x: p.x + (dir === "left" ? s : dir === "right" ? -s : 0),
-          y: p.y + (dir === "up" ? s : dir === "down" ? -s : 0),
-        }));
-        return;
-      }
-      const curFi = filteredPoints.findIndex((p) => dataPoints.indexOf(p) === activeIdx);
-      const next =
-        dir === "right" || dir === "down"
-          ? Math.min(filteredPoints.length - 1, Math.max(curFi, 0) + 1)
-          : Math.max(0, curFi <= 0 ? 0 : curFi - 1);
-      const gi = dataPoints.indexOf(filteredPoints[next]);
-      setActiveIdx(gi);
-      setSelectedRows(new Set([gi]));
-    },
-    [filteredPoints, dataPoints, activeIdx],
-  );
+    // 2. Navigation logic (Jumping between points)
+    const curFi = filteredPoints.findIndex((p) => dataPoints.indexOf(p) === activeIdx);
+    
+    const next =
+      dir === "right" || dir === "down"
+        ? Math.min(filteredPoints.length - 1, Math.max(curFi, 0) + 1)
+        : Math.max(0, curFi <= 0 ? 0 : curFi - 1);
+
+    const gi = dataPoints.indexOf(filteredPoints[next]);
+    const nextPoint = dataPoints[gi];
+
+    // 3. (Optional) Auto-Calculate dimensions of the next point for console/debugging
+    if (nextPoint && nextPoint.bbox) {
+      const w = Math.abs(nextPoint.bbox.x2 - nextPoint.bbox.x1);
+      const h = Math.abs(nextPoint.bbox.y2 - nextPoint.bbox.y1);
+      console.log(`Mapsd to Point ${gi}: ${w}x${h}`);
+    }
+
+    setActiveIdx(gi);
+    setSelectedRows(new Set([gi]));
+  },
+  [filteredPoints, dataPoints, activeIdx, setPan] 
+);
 
   const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono',monospace" };
   const sans: React.CSSProperties = { fontFamily: "'DM Sans',sans-serif" };
@@ -370,7 +383,7 @@ export default function CoordinatePlotter(): JSX.Element {
       </div>
 
       {/* ── CONTROLS BAR — sits directly below the fixed canvas ── */}
-      <div style={{ flexShrink: 0, width: "100%" }}>
+      <div className="flex-shrink-0 w-full mt-15" >
         <ControlsBar
           bgImage={bgImage}
           setBgImage={setBgImage}

@@ -1,52 +1,10 @@
 import { useRef, useEffect, useCallback, useState, type JSX } from "react";
-import type {
-  DataPoint,
-  LineSegment,
-  Pan,
-  Tooltip,
-} from "../service/Cordicate-service";
 import { drawLightCanvas } from "../canvas/canvasDraw";
-import { DPad } from "./ui/DPad";
-
-interface Props {
-  canvasRef: React.RefObject<HTMLCanvasElement>;
-  bgImage: HTMLImageElement | null;
-  dataPoints: DataPoint[];
-  filteredPoints: DataPoint[];
-  lineSegments: LineSegment[];
-  manualPoints?: import("../service/Cordicate-service").ManualPoint[];
-  manualLines?: import("../service/Cordicate-service").ManualLine[];
-  confMin: number;
-  confMax: number;
-  areaMin: number;
-  areaMax: number;
-  areaAbsMax: number;
-  bboxSizeMin: number;
-  bboxSizeMax: number;
-  bboxSizeAbsMax: number;
-  showBboxes: boolean;
-  showLines: boolean;
-  showLabels: boolean;
-  showOnlyRejected: boolean;
-  pan: Pan;
-  setPan: React.Dispatch<React.SetStateAction<Pan>>;
-  selectedRows: Set<number>;
-  setSelectedRows: React.Dispatch<React.SetStateAction<Set<number>>>;
-  activeIdx: number;
-  setActiveIdx: (i: number) => void;
-  lastClicked: number;
-  setLastClicked: (i: number) => void;
-  activePoint: DataPoint | null;
-  filteredCount: number;
-  totalCount: number;
-  onNavPoint: (dir: "up" | "down" | "left" | "right") => void;
-}
+import type { Tooltip } from "../service/Cordicate-service";
+import { Layers } from "lucide-react";
 
 const CANVAS_W = 1200;
 const CANVAS_H = 500;
-
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono',monospace" };
-const sans: React.CSSProperties = { fontFamily: "'DM Sans',sans-serif" };
 
 export function CanvasSection({
   canvasRef,
@@ -88,11 +46,26 @@ export function CanvasSection({
     point: null,
   });
 
+  console.log("CanvasSection rendered with activePoint:", activePoint);
+  console.log(
+    "DataPoints length:",
+    dataPoints.length,
+    "FilteredPoints length:",
+    filteredPoints.length,
+  );
+  console.log("Pan state:", tooltip, pan);
   const isPanning = useRef(false);
   const didPan = useRef(false);
   const panStart = useRef({ mx: 0, my: 0, px: 0, py: 0 });
 
-  /* ── Redraw ── */
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowUp") onNavPoint("up");
+    if (e.key === "ArrowDown") onNavPoint("down");
+    if (e.key === "ArrowLeft") onNavPoint("left");
+    if (e.key === "ArrowRight") onNavPoint("right");
+    if (e.key.toLowerCase() === "r") setPan({ x: 0, y: 0 });
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -124,15 +97,30 @@ export function CanvasSection({
       activeIdx,
     });
   }, [
-    bgImage, dataPoints, lineSegments,
-    manualPoints, manualLines,
-    confMin, confMax, areaMin, areaMax, areaAbsMax,
-    bboxSizeMin, bboxSizeMax, bboxSizeAbsMax,
-    showBboxes, showLines, showLabels, showOnlyRejected,
-    hoveredIdx, selectedRows, pan, activeIdx, canvasRef,
+    bgImage,
+    dataPoints,
+    lineSegments,
+    manualPoints,
+    manualLines,
+    confMin,
+    confMax,
+    areaMin,
+    areaMax,
+    areaAbsMax,
+    bboxSizeMin,
+    bboxSizeMax,
+    bboxSizeAbsMax,
+    showBboxes,
+    showLines,
+    showLabels,
+    showOnlyRejected,
+    hoveredIdx,
+    selectedRows,
+    pan,
+    activeIdx,
+    canvasRef,
   ]);
 
-  /* ── Hit-test ── */
   const hitTest = useCallback(
     (clientX: number, clientY: number): number => {
       const canvas = canvasRef.current;
@@ -142,7 +130,8 @@ export function CanvasSection({
       const cy = (clientY - rect.top) * (canvas.height / rect.height) - pan.y;
       for (let i = filteredPoints.length - 1; i >= 0; i--) {
         const p = filteredPoints[i];
-        const dx = cx - p.center.x, dy = cy - p.center.y;
+        const dx = cx - p.center.x,
+          dy = cy - p.center.y;
         if (Math.sqrt(dx * dx + dy * dy) <= 10) return dataPoints.indexOf(p);
       }
       return -1;
@@ -150,351 +139,342 @@ export function CanvasSection({
     [canvasRef, pan, filteredPoints, dataPoints],
   );
 
-  /* ── Mouse handlers ── */
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    didPan.current = false;
-    if (e.button === 1 || (e.button === 0 && e.altKey)) {
-      isPanning.current = true;
-      panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y };
-      e.preventDefault();
-    }
+  // Helper to get dimensions consistently
+  const getDims = (point: any) => {
+    if (!point) return { w: 0, h: 0 };
+    const w =
+      point.bbox?.w ||
+      (point.bbox ? Math.abs(point.bbox.x2 - point.bbox.x1) : point.width || 0);
+    const h =
+      point.bbox?.h ||
+      (point.bbox
+        ? Math.abs(point.bbox.y2 - point.bbox.y1)
+        : point.height || 0);
+    return { w: Math.round(w), h: Math.round(h) };
   };
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (isPanning.current) {
-        didPan.current = true;
-        setPan({
-          x: panStart.current.px + e.clientX - panStart.current.mx,
-          y: panStart.current.py + e.clientY - panStart.current.my,
-        });
-        return;
-      }
-      const found = hitTest(e.clientX, e.clientY);
-      setHoveredIdx(found);
-      if (found >= 0)
-        setTooltip({ visible: true, x: e.clientX, y: e.clientY, point: dataPoints[found] });
-      else
-        setTooltip((t) => ({ ...t, visible: false }));
-    },
-    [hitTest, setPan, dataPoints],
-  );
-
-  const handleMouseUp = () => { isPanning.current = false; };
-
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (didPan.current) return;
-      const found = hitTest(e.clientX, e.clientY);
-      if (found < 0) return;
-      setSelectedRows((prev) => {
-        const next = new Set(prev);
-        if (e.ctrlKey || e.metaKey) {
-          next.has(found) ? next.delete(found) : next.add(found);
-        } else {
-          next.clear();
-          next.add(found);
-        }
-        return next;
-      });
-      setActiveIdx(found);
-      setLastClicked(found);
-    },
-    [hitTest, setSelectedRows, setActiveIdx, setLastClicked],
-  );
-
   return (
-    <>
-      {/*
-        ── Outer scroll container ──────────────────────────────────────────────
-        Full width of the page, horizontally scrollable if viewport < CANVAS_W.
-        Height is exactly CANVAS_H so it never grows/shrinks.
-      */}
+    <div className="flex h-[550px] w-full bg-slate-950 overflow-hidden border border-slate-800 shadow-lg">
       <div
-        style={{
-          width: "100%",
-          height: CANVAS_H,
-          overflowX: "auto",
-          overflowY: "hidden",
-          flexShrink: 0,
-          background: "#e8edf2",
-          // subtle inset stripe so the area outside the canvas reads as "outside"
-          backgroundImage:
-            "repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(0,0,0,0.018) 8px,rgba(0,0,0,0.018) 16px)",
-        }}
+        className="relative flex-1 bg-[#0f172a] overflow-auto p-4 flex items-center justify-center focus:outline-none"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
       >
-        {/*
-          ── Centering row ──────────────────────────────────────────────────────
-          min-width forces the row to be at least CANVAS_W wide so the canvas
-          never gets squeezed. justify-content centers it when there IS room.
-        */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "flex-start",
-            minWidth: CANVAS_W,
-            height: "100%",
-          }}
-        >
-          {/*
-            ── Canvas wrapper — exactly 1200×500 ────────────────────────────────
-            position:relative so all the HUD overlays are anchored to the canvas,
-            not to the scroll container.
-          */}
-          <div
-            style={{
-              position: "relative",
-              width: CANVAS_W,
-              height: CANVAS_H,
-              flexShrink: 0,
-              cursor: "crosshair",
-              // thin shadow so the canvas edge is visible against the bg
-              boxShadow: "0 0 0 1px rgba(0,0,0,0.10), 0 4px 24px rgba(0,0,0,0.08)",
+        <div className="relative shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden border border-slate-700">
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_W}
+            height={CANVAS_H}
+            className="block cursor-crosshair"
+            onMouseMove={(e) => {
+              if (isPanning.current) {
+                setPan({
+                  x: panStart.current.px + e.clientX - panStart.current.mx,
+                  y: panStart.current.py + e.clientY - panStart.current.my,
+                });
+                return;
+              }
+              const found = hitTest(e.clientX, e.clientY);
+              setHoveredIdx(found);
+              if (found >= 0)
+                setTooltip({
+                  visible: true,
+                  x: e.clientX,
+                  y: e.clientY,
+                  point: dataPoints[found],
+                });
+              else setTooltip((t) => ({ ...t, visible: false }));
             }}
-            onMouseMove={handleMouseMove}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-            onClick={handleClick}
-            onMouseLeave={() => {
-              setHoveredIdx(-1);
-              setTooltip((t) => ({ ...t, visible: false }));
+            onMouseDown={(e) => {
+              didPan.current = false;
+              if (e.button === 1 || (e.button === 0 && e.altKey)) {
+                isPanning.current = true;
+                panStart.current = {
+                  mx: e.clientX,
+                  my: e.clientY,
+                  px: pan.x,
+                  py: pan.y,
+                };
+                e.preventDefault();
+              }
+            }}
+            onMouseUp={() => {
               isPanning.current = false;
             }}
-          >
-            <canvas
-              ref={canvasRef}
-              width={CANVAS_W}
-              height={CANVAS_H}
-              style={{
-                display: "block",
-                width: CANVAS_W,
-                height: CANVAS_H,
-              }}
-            />
+            onClick={(e) => {
+              if (didPan.current) return;
+              const found = hitTest(e.clientX, e.clientY);
+              if (found < 0) return;
+              setSelectedRows((prev) => {
+                const next = new Set(prev);
+                if (e.ctrlKey || e.metaKey)
+                  next.has(found) ? next.delete(found) : next.add(found);
+                else {
+                  next.clear();
+                  next.add(found);
+                }
+                return next;
+              });
+              setActiveIdx(found);
+              setLastClicked(found);
+            }}
+          />
 
-            {/* ── Legend HUD ── */}
+          {/* ── FLOATING DIMENSION LABEL ON CANVAS ── */}
+          {/* {activeIdx !== -1 && dataPoints[activeIdx] && (
             <div
-              className="hud"
-              style={{ position: "absolute", top: 12, left: 12, padding: "10px 14px" }}
+              className="absolute pointer-events-none font-mono font-bold text-[10px] bg-amber-600 text-white px-2 py-0.5 rounded shadow-xl z-20 border border-amber-400/50 flex items-center gap-1"
+              style={{
+                left: dataPoints[activeIdx].center.x + pan.x,
+                top:
+                  dataPoints[activeIdx].center.y +
+                  pan.y -
+                  getDims(dataPoints[activeIdx]).h / 2 -
+                  25,
+                transform: "translateX(30%)",
+              }}
             >
-              <div
-                style={{
-                  fontSize: 9, fontWeight: 700, color: "#94a3b8",
-                  letterSpacing: "0.1em", marginBottom: 8, ...mono,
-                }}
-              >
-                LEGEND
-              </div>
-              {(
-                [
-                  ["#16a34a", "Accepted"],
-                  ["#dc2626", "Rejected"],
-                ] as [string, string][]
-              ).map(([c, l]) => (
-                <div key={l} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                  <div
-                    style={{
-                      width: 10, height: 10, borderRadius: "50%",
-                      background: c, boxShadow: `0 0 0 2px white,0 0 0 3.5px ${c}55`,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: 11, color: "#475569", fontWeight: 500 }}>{l}</span>
-                </div>
-              ))}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-                <div style={{ width: 16, height: 2.5, borderRadius: 2, background: "#f59e0b" }} />
-                <span style={{ fontSize: 11, color: "#475569", fontWeight: 500 }}>Selected BBox</span>
-              </div>
-              {showOnlyRejected && (
-                <div
-                  style={{
-                    marginTop: 7, padding: "3px 6px", borderRadius: 4,
-                    background: "#fef2f2", border: "1px solid #fca5a5",
-                    fontSize: 9, fontWeight: 700, color: "#b91c1c", ...mono,
-                  }}
-                >
-                  ✗ REJECTED ONLY
-                </div>
-              )}
+              <span>W-{getDims(dataPoints[activeIdx]).w}px</span>
+              <span className="opacity-50">×</span>
+              <span>H-{getDims(dataPoints[activeIdx]).h}px</span>
             </div>
+          )} */}
 
-            {/* ── Active point HUD ── */}
-            {activePoint && (
-              <div
-                className="hud"
-                style={{ position: "absolute", top: 12, right: 12, padding: "10px 16px", minWidth: 168 }}
-              >
-                <div
-                  style={{
-                    fontSize: 9, fontWeight: 700, color: "#2563eb",
-                    letterSpacing: "0.1em", marginBottom: 9, ...mono,
-                  }}
-                >
-                  ACTIVE POINT
-                </div>
-                {(
-                  [
-                    ["Frame", activePoint.frameNumber, "#0f172a"],
-                    ["Position", `(${activePoint.center.x},${activePoint.center.y})`, "#475569"],
-                    ["Confidence", activePoint.confidence.toFixed(4), "#2563eb"],
-                    ...(activePoint.area !== null
-                      ? [["Area", String(activePoint.area), "#15803d"]]
-                      : []),
-                  ] as [string, string, string][]
-                ).map(([k, v, c]) => (
-                  <div
-                    key={k}
-                    style={{ display: "flex", justifyContent: "space-between", gap: 14, marginBottom: 4 }}
-                  >
-                    <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>{k}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: c, ...mono }}>{v}</span>
+          {(pan.x !== 0 || pan.y !== 0) && (
+            <button
+              onClick={() => setPan({ x: 0, y: 0 })}
+              className="absolute bottom-4 left-4 bg-indigo-600/90 text-white px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest backdrop-blur-md hover:bg-indigo-500 border border-indigo-400/30"
+            >
+              ⌖ Center View
+            </button>
+          )}
+
+          {/* Tooltip Overlay */}
+          {tooltip.visible && tooltip.point && (
+            <div
+              className="fixed pointer-events-none z-[999] bg-slate-900/95 backdrop-blur-xl text-white rounded-xl shadow-2xl border border-white/10 p-4 min-w-[240px]"
+              style={{ left: tooltip.x + 40, top: tooltip.y - 20 }}
+            >
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                {[
+                  {
+                    label: "Width",
+                    val: `${getDims(tooltip.point).w}px`,
+                    color: "text-emerald-400",
+                  },
+                  {
+                    label: "Height",
+                    val: `${getDims(tooltip.point).h}px`,
+                    color: "text-emerald-400",
+                  },
+                  {
+                    label: "Confidence",
+                    val: `${(tooltip.point.confidence * 100).toFixed(2)}%`,
+                    color: "text-blue-400",
+                  },
+                  {
+                    label: "Area",
+                    val: tooltip.point.area ?? "N/A",
+                    color: "text-slate-300",
+                  },
+                  {
+                    label: "X / Y Center",
+                    val: `${tooltip.point.center.x.toFixed(1)} / ${tooltip.point.center.y.toFixed(1)}`,
+                    color: "text-slate-300",
+                  },
+                  {
+                    label: "Frame",
+                    val: tooltip.point.frameNumber,
+                    color: "text-yellow-400",
+                  },
+                ].map((item) => (
+                  <div key={item.label} className="flex flex-col">
+                    <span className="text-[8px] font-bold text-slate-500 uppercase">
+                      {item.label}
+                    </span>
+                    <span
+                      className={`text-[11px] font-bold font-mono ${item.color}`}
+                    >
+                      {item.val}
+                    </span>
                   </div>
                 ))}
-                <div
-                  style={{
-                    marginTop: 7, paddingTop: 7, borderTop: "1px solid #f1f5f9",
-                    fontSize: 11, fontWeight: 700, textAlign: "center",
-                    color: activePoint.status === "N" ? "#15803d" : "#b91c1c", ...mono,
-                  }}
-                >
-                  {activePoint.status === "N" ? "✓ ACCEPTED" : "✗ REJECTED"}
-                </div>
               </div>
-            )}
-
-            {/* ── Point count badge ── */}
-            {totalCount > 0 && (
-              <div
-                style={{
-                  position: "absolute", top: 12, left: "50%",
-                  transform: "translateX(-50%)",
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  padding: "3px 10px",
-                  background: "rgba(255,255,255,0.95)",
-                  border: "1.5px solid #e2e8f0", borderRadius: 6,
-                  ...mono, fontSize: 10,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <span style={{ color: "#2563eb", fontWeight: 700 }}>{filteredCount}</span>
-                <span style={{ color: "#cbd5e1" }}>/</span>
-                <span style={{ color: "#64748b", fontWeight: 600 }}>{totalCount}</span>
-                <span style={{ color: "#94a3b8", fontSize: 9 }}>pts</span>
-              </div>
-            )}
-
-            {/* ── DPad ── */}
-            <div style={{ position: "absolute", bottom: 14, right: 14 }}>
-              <div
-                style={{
-                  textAlign: "center", fontSize: 9, color: "#94a3b8",
-                  fontWeight: 600, marginBottom: 5, letterSpacing: "0.06em", ...mono,
-                }}
-              >
-                {filteredPoints.length ? "NAV PTS" : "PAN"}
-              </div>
-              <DPad
-                onUp={() => onNavPoint("up")}
-                onDown={() => onNavPoint("down")}
-                onLeft={() => onNavPoint("left")}
-                onRight={() => onNavPoint("right")}
-              />
-            </div>
-
-            {/* ── Reset pan ── */}
-            {(pan.x !== 0 || pan.y !== 0) && (
-              <button
-                className="btn btn-g"
-                onClick={() => setPan({ x: 0, y: 0 })}
-                style={{ position: "absolute", bottom: 14, left: 12, fontSize: 10 }}
-              >
-                ⌖ Reset Pan
-              </button>
-            )}
-
-            {/* ── Click hint ── */}
-            {totalCount > 0 && (
-              <div
-                style={{
-                  position: "absolute", bottom: 14, left: "50%",
-                  transform: "translateX(-50%)",
-                  fontSize: 10, color: "#94a3b8", fontWeight: 500,
-                  ...sans,
-                  background: "rgba(255,255,255,0.85)",
-                  padding: "2px 8px", borderRadius: 4,
-                  pointerEvents: "none",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Click a point to select · Alt+drag to pan
-              </div>
-            )}
-          </div>
-          {/* end canvas wrapper */}
-        </div>
-        {/* end centering row */}
-      </div>
-      {/* end scroll container */}
-
-      {/* ── Tooltip (portal fixed — always on top of everything) ── */}
-      {tooltip.visible && tooltip.point && (
-        <div
-          style={{
-            position: "fixed", zIndex: 50,
-            left: tooltip.x + 16, top: tooltip.y - 10,
-            background: "#fff", border: "1.5px solid #e2e8f0",
-            borderRadius: 12, padding: "12px 16px",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06)",
-            pointerEvents: "none", minWidth: 180, ...sans,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 9, fontWeight: 700, color: "#2563eb",
-              letterSpacing: "0.1em", marginBottom: 10, ...mono,
-            }}
-          >
-            DETECTION INFO
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            {(
-              [
-                ["Area", tooltip.point.area ?? "—", "#0f172a"],
-                ["Frame", tooltip.point.frameNumber, "#0f172a"],
-                ["Position", `(${tooltip.point.center.x}, ${tooltip.point.center.y})`, "#475569"],
-                ["Confidence", tooltip.point.confidence.toFixed(4), "#2563eb"],
-                ["Timestamp", tooltip.point.timestamp, "#64748b"],
-                ["Δt", `+${(tooltip.point.relativeTime || 0).toFixed(3)}s`, "#94a3b8"],
-              ] as [string, string | number, string][]
-            ).map(([k, v, c]) => (
-              <div key={k} style={{ display: "flex", gap: 12, alignItems: "baseline" }}>
-                <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 500, width: 72, flexShrink: 0 }}>
-                  {k}
-                </span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: c, ...mono }}>{v}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f1f5f9" }}>
-            <span
-              style={{
-                fontSize: 11, fontWeight: 700,
-                color: tooltip.point.status === "N" ? "#15803d" : "#b91c1c", ...mono,
-              }}
-            >
-              {tooltip.point.status === "N" ? "✓ ACCEPTED" : "✗ REJECTED"}
-            </span>
-          </div>
-          {tooltip.point.description !== "-" && (
-            <div style={{ marginTop: 5, fontSize: 10, color: "#d97706", fontWeight: 500 }}>
-              {tooltip.point.description}
             </div>
           )}
         </div>
-      )}
-    </>
+      </div>
+
+      {/* ── RIGHT SIDE: THE INTELLIGENCE PANEL ── */}
+      <div className="w-[340px] bg-slate-900 border-l border-slate-800 flex flex-col p-4 overflow-y-auto scrollbar-hide space-y-6">
+        {/* Header Stats */}
+        <section className="grid grid-cols-2 gap-2">
+          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+            <div className="text-[8px] text-slate-500 font-bold uppercase">
+              Total Points
+            </div>
+            <div className="text-white font-mono text-lg">
+              {dataPoints.length}
+            </div>
+          </div>
+          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+            <div className="text-[8px] text-slate-500 font-bold uppercase">
+              Filtered
+            </div>
+            <div className="text-emerald-400 font-mono text-lg">
+              {filteredCount}
+            </div>
+          </div>
+        </section>
+
+        {/* MAIN INSPECTOR: Priority to Active Click, Fallback to Hover */}
+        <section className="space-y-4">
+          <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-2">
+            <Layers size={14} /> Object Inspector
+          </h4>
+
+          {activePoint || (tooltip.visible && tooltip.point) ? (
+            (() => {
+              const p = activePoint || tooltip.point!;
+              const dims = getDims(p);
+              return (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {/* 1. Primary Identity Card */}
+                  <div className="bg-indigo-600 p-4 rounded-xl shadow-lg shadow-indigo-500/10">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black text-indigo-100 uppercase">
+                        Detection ID
+                      </span>
+                      <span className="bg-white/20 text-white px-2 py-0.5 rounded text-[10px] font-mono">
+                        {p.source.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="text-2xl font-mono font-bold text-white tracking-tighter">
+                      #{dataPoints.indexOf(p)}
+                    </div>
+                  </div>
+                  {/* 2. Temporal Data (Time) */}
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <div className="text-[9px] font-bold text-slate-500 uppercase border-b border-slate-900 pb-2">
+                      Timing & Confidence
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-[8px] text-slate-500">FRAME</div>
+                        <div className="text-amber-500 font-mono text-sm">
+                          {p.frameNumber}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[8px] text-slate-500">
+                          CONFIDENCE
+                        </div>
+                        <div className="text-blue-400 font-mono text-sm">
+                          {(p.confidence * 100).toFixed(2)}%
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <div className="text-[8px] text-slate-500">
+                          RELATIVE TIME
+                        </div>
+                        <div className="text-slate-300 font-mono text-sm">
+                          +{p.relativeTime?.toFixed(4)} s
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <div className="text-[8px] text-slate-500">
+                          TIMESTAMP
+                        </div>
+                        <div className="text-slate-400 font-mono text-xs">
+                          {p.timestamp}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Geometry & Area */}
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <div className="text-[9px] font-bold text-slate-500 uppercase border-b border-slate-900 pb-2">
+                      Dimensions & Pos
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-[8px] text-slate-500">
+                          WIDTH / HEIGHT
+                        </div>
+                        <div className="text-white font-mono text-sm">
+                          {dims.w} × {dims.h}{" "}
+                          <span className="text-[9px] opacity-40">px</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[8px] text-slate-500">
+                          TOTAL AREA
+                        </div>
+                        <div className="text-emerald-400 font-mono text-sm">
+                          {p.area || dims.w * dims.h}{" "}
+                          <span className="text-[9px] opacity-40">px²</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[8px] text-slate-500">
+                          CENTER X
+                        </div>
+                        <div className="text-slate-300 font-mono text-sm">
+                          {p.center.x.toFixed(1)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[8px] text-slate-500">
+                          CENTER Y
+                        </div>
+                        <div className="text-slate-300 font-mono text-sm">
+                          {p.center.y.toFixed(1)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-slate-900">
+                      <div className="text-[8px] text-slate-500">
+                        BOUNDING BOX (x1, y1, x2, y2)
+                      </div>
+                      <div className="text-slate-400 font-mono text-[10px]">
+                        {p.bbox?.x1}, {p.bbox?.y1} → {p.bbox?.x2}, {p.bbox?.y2}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            <div className="bg-slate-950/40 border-2 border-dashed border-slate-800 p-10 rounded-2xl text-center">
+              <div className="text-slate-600 text-xs font-bold uppercase tracking-widest leading-relaxed">
+                Select or hover <br /> a point to view <br /> full telemetry
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Section 3: Legend */}
+        <section className="space-y-4 pt-4 border-t border-slate-800">
+          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+            Legend
+          </h4>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-[10px] text-slate-400 font-bold">
+                STATUS: N (Accepted)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-red-600" />
+              <span className="text-[10px] text-slate-400 font-bold">
+                STATUS: Y (Rejected)
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
