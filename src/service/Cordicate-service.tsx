@@ -199,6 +199,8 @@ export function parseData(text: string): ParseResult {
         area: parseInt(areaStr) || null,
         description: (description || "-").trim() || "-",
         relativeTime: 0,
+        width: undefined,
+        height: undefined
       });
     } catch (e) {
       errors.push(`Line ${i + 1}: ${(e as Error).message}`);

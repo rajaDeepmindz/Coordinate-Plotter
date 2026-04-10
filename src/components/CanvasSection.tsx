@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState, type JSX } from "react";
+type Props = any;
 import { drawLightCanvas } from "../canvas/canvasDraw";
 import type { Tooltip } from "../service/Cordicate-service";
 import { Layers } from "lucide-react";
@@ -35,7 +36,6 @@ export function CanvasSection({
   setLastClicked,
   activePoint,
   filteredCount,
-  totalCount,
   onNavPoint,
 }: Props): JSX.Element {
   const [hoveredIdx, setHoveredIdx] = useState(-1);
@@ -205,7 +205,7 @@ export function CanvasSection({
               if (didPan.current) return;
               const found = hitTest(e.clientX, e.clientY);
               if (found < 0) return;
-              setSelectedRows((prev) => {
+              setSelectedRows((prev: Iterable<unknown> | null | undefined) => {
                 const next = new Set(prev);
                 if (e.ctrlKey || e.metaKey)
                   next.has(found) ? next.delete(found) : next.add(found);

@@ -1,4 +1,3 @@
-import { CloudCog } from "lucide-react";
 import { useRef, useEffect, useCallback, useState, type JSX } from "react";
 
 type Tool = "pen" | "brush" | "eraser" | "line" | "rect" | "circle" | "arrow" | "text" | "fill";
@@ -8,22 +7,19 @@ const PALETTE = ["#1e293b", "#e24b4a", "#f97316", "#eab308", "#22c55e", "#3b82f6
 export function DrawingCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const snapshotRef = useRef<ImageData | null>(null);
   const drawingRef = useRef(false);
-  const startRef = useRef({ x: 0, y: 0 });
   const historyRef = useRef<string[]>([]);
   const futureRef = useRef<string[]>([]);
-  const textInputRef = useRef<HTMLInputElement | null>(null);
 
   const [tool, setToolState] = useState<Tool>("pen");
   console.log("Current Tool:", tool);
   const [color, setColorState] = useState("#1e293b");
   const [size, setSize] = useState(4);
   const [opacity, setOpacity] = useState(100);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [pos] = useState({ x: 0, y: 0 });
   
   // New state for showing dimensions
-  const [dimensions, setDimensions] = useState<{ w: number; h: number } | null>(null);
+  const [dimensions] = useState<{ w: number; h: number } | null>(null);
 
   const getCtx = () => canvasRef.current?.getContext("2d") ?? null;
 
@@ -70,146 +66,102 @@ export function DrawingCanvas() {
     a.click();
   };
 
-  const floodFill = (x: number, y: number) => {
-    const c = canvasRef.current; const ctx = getCtx(); if (!c || !ctx) return;
-    const w = c.width, h = c.height;
-    const data = ctx.getImageData(0, 0, w, h);
-    const d = data.data;
-    const idx = (Math.round(y) * w + Math.round(x)) * 4;
-    const [tr, tg, tb] = [d[idx], d[idx+1], d[idx+2]];
-    const fr = parseInt(color.slice(1,3),16);
-    const fg = parseInt(color.slice(3,5),16);
-    const fb = parseInt(color.slice(5,7),16);
-    if (tr===fr && tg===fg && tb===fb) return;
-    const stack: [number,number][] = [[Math.round(x), Math.round(y)]];
-    const visited = new Uint8Array(w * h);
-    while (stack.length) {
-      const [cx, cy] = stack.pop()!;
-      if (cx<0||cy<0||cx>=w||cy>=h) continue;
-      const i = cy*w+cx; if (visited[i]) continue; visited[i]=1;
-      const pi = i*4;
-      if (Math.abs(d[pi]-tr)>30||Math.abs(d[pi+1]-tg)>30||Math.abs(d[pi+2]-tb)>30) continue;
-      d[pi]=fr; d[pi+1]=fg; d[pi+2]=fb; d[pi+3]=255;
-      stack.push([cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]);
-    }
-    ctx.putImageData(data, 0, 0);
-  };
+  // floodFill removed — currently unused; keep implementation commented for future.
 
-  const drawArrow = (ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) => {
-    const angle = Math.atan2(y2-y1, x2-x1);
-    const headLen = Math.max(12, size * 3);
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x2,y2);
-    ctx.lineTo(x2 - headLen*Math.cos(angle - Math.PI/6), y2 - headLen*Math.sin(angle - Math.PI/6));
-    ctx.moveTo(x2,y2);
-    ctx.lineTo(x2 - headLen*Math.cos(angle + Math.PI/6), y2 - headLen*Math.sin(angle + Math.PI/6));
-    ctx.stroke();
-  };
+  // drawArrow removed — unused helper kept commented for future.
 
-  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
-    const r = canvasRef.current!.getBoundingClientRect();
-    const src = "touches" in e ? e.touches[0] : e;
-    return { x: src.clientX - r.left, y: src.clientY - r.top };
-  };
+  // getPos removed — unused when pointer handlers are commented out.
 
-  const applyCtxStyle = (ctx: CanvasRenderingContext2D, overrideSize?: number) => {
-    ctx.globalAlpha = opacity / 100;
-    ctx.strokeStyle = tool === "eraser" ? "#ffffff" : color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = overrideSize ?? size;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-  };
+  // applyCtxStyle removed — unused style helper.
 
-  const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
-    const { x, y } = getPos(e);
-    const ctx = getCtx(); if (!ctx) return;
+  // const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
+  //   const { x, y } = getPos(e);
+  //   const ctx = getCtx(); if (!ctx) return;
 
-    if (tool === "fill") { saveState(); floodFill(x, y); return; }
+  //   if (tool === "fill") { saveState(); floodFill(x, y); return; }
 
-    if (tool === "text") {
-      if (textInputRef.current) { textInputRef.current.blur(); return; }
-      const inp = document.createElement("input");
-      const r = canvasRef.current!.getBoundingClientRect();
-      inp.style.cssText = `position:fixed;left:${r.left+x}px;top:${r.top+y}px;font-size:${Math.max(14,size*3)}px;border:1.5px dashed #6366f1;background:transparent;outline:none;color:${color};font-family:system-ui;min-width:80px;z-index:9999;padding:2px 4px;border-radius:4px;`;
-      document.body.appendChild(inp);
-      inp.focus();
-      textInputRef.current = inp;
-      const tx = x, ty = y;
-      inp.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === "Escape") {
-          if (inp.value) {
-            saveState();
-            ctx.font = `${Math.max(14,size*3)}px system-ui,sans-serif`;
-            ctx.fillStyle = color;
-            ctx.globalAlpha = opacity / 100;
-            ctx.fillText(inp.value, tx, ty + Math.max(14,size*3)*0.8);
-            ctx.globalAlpha = 1;
-          }
-          document.body.removeChild(inp);
-          textInputRef.current = null;
-        }
-      });
-      return;
-    }
+  //   if (tool === "text") {
+  //     if (textInputRef.current) { textInputRef.current.blur(); return; }
+  //     const inp = document.createElement("input");
+  //     const r = canvasRef.current!.getBoundingClientRect();
+  //     inp.style.cssText = `position:fixed;left:${r.left+x}px;top:${r.top+y}px;font-size:${Math.max(14,size*3)}px;border:1.5px dashed #6366f1;background:transparent;outline:none;color:${color};font-family:system-ui;min-width:80px;z-index:9999;padding:2px 4px;border-radius:4px;`;
+  //     document.body.appendChild(inp);
+  //     inp.focus();
+  //     textInputRef.current = inp;
+  //     const tx = x, ty = y;
+  //     inp.addEventListener("keydown", (ev) => {
+  //       if (ev.key === "Enter" || ev.key === "Escape") {
+  //         if (inp.value) {
+  //           saveState();
+  //           ctx.font = `${Math.max(14,size*3)}px system-ui,sans-serif`;
+  //           ctx.fillStyle = color;
+  //           ctx.globalAlpha = opacity / 100;
+  //           ctx.fillText(inp.value, tx, ty + Math.max(14,size*3)*0.8);
+  //           ctx.globalAlpha = 1;
+  //         }
+  //         document.body.removeChild(inp);
+  //         textInputRef.current = null;
+  //       }
+  //     });
+  //     return;
+  //   }
 
-    drawingRef.current = true;
-    startRef.current = { x, y };
-    snapshotRef.current = ctx.getImageData(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-    applyCtxStyle(ctx);
+  //   drawingRef.current = true;
+  //   startRef.current = { x, y };
+  //   snapshotRef.current = ctx.getImageData(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+  //   applyCtxStyle(ctx);
 
-    if (tool === "pen" || tool === "brush" || tool === "eraser") {
-      ctx.beginPath(); ctx.moveTo(x, y);
-    }
-  };
+  //   if (tool === "pen" || tool === "brush" || tool === "eraser") {
+  //     ctx.beginPath(); ctx.moveTo(x, y);
+  //   }
+  // };
 
-  const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
-    const { x, y } = getPos(e);
-    setPos({ x: Math.round(x), y: Math.round(y) });
-    if (!drawingRef.current) return;
-    const ctx = getCtx(); if (!ctx) return;
+  // const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
+  //   const { x, y } = getPos(e);
+  //   setPos({ x: Math.round(x), y: Math.round(y) });
+  //   if (!drawingRef.current) return;
+  //   const ctx = getCtx(); if (!ctx) return;
 
-    if (tool === "pen" || tool === "eraser") {
-      applyCtxStyle(ctx);
-      ctx.lineTo(x, y); ctx.stroke();
-    } else if (tool === "brush") {
-      ctx.globalAlpha = (opacity/100) * 0.35;
-      ctx.strokeStyle = color; ctx.lineWidth = size * 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
-      ctx.lineTo(x, y); ctx.stroke();
-      ctx.globalAlpha = opacity/100; ctx.lineWidth = size;
-      ctx.lineTo(x, y); ctx.stroke();
-    } else {
-      ctx.putImageData(snapshotRef.current!, 0, 0);
-      applyCtxStyle(ctx);
-      ctx.beginPath();
-      const { x: sx, y: sy } = startRef.current;
+  //   if (tool === "pen" || tool === "eraser") {
+  //     applyCtxStyle(ctx);
+  //     ctx.lineTo(x, y); ctx.stroke();
+  //   } else if (tool === "brush") {
+  //     ctx.globalAlpha = (opacity/100) * 0.35;
+  //     ctx.strokeStyle = color; ctx.lineWidth = size * 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  //     ctx.lineTo(x, y); ctx.stroke();
+  //     ctx.globalAlpha = opacity/100; ctx.lineWidth = size;
+  //     ctx.lineTo(x, y); ctx.stroke();
+  //   } else {
+  //     ctx.putImageData(snapshotRef.current!, 0, 0);
+  //     applyCtxStyle(ctx);
+  //     ctx.beginPath();
+  //     const { x: sx, y: sy } = startRef.current;
       
-      // Calculate and Update dimensions for UI
-      if (tool === "rect" || tool === "circle") {
-          setDimensions({
-              w: Math.abs(Math.round(x - sx)),
-              h: Math.abs(Math.round(y - sy))
-          });
-      }
+  //     // Calculate and Update dimensions for UI
+  //     if (tool === "rect" || tool === "circle") {
+  //         setDimensions({
+  //             w: Math.abs(Math.round(x - sx)),
+  //             h: Math.abs(Math.round(y - sy))
+  //         });
+  //     }
 
-      if (tool === "line") { ctx.moveTo(sx,sy); ctx.lineTo(x,y); ctx.stroke(); }
-      else if (tool === "rect") { ctx.strokeRect(sx, sy, x-sx, y-sy); }
-      else if (tool === "circle") {
-        const rx = Math.abs(x-sx)/2, ry = Math.abs(y-sy)/2;
-        ctx.ellipse(sx+(x-sx)/2, sy+(y-sy)/2, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
-      }
-      else if (tool === "arrow") { drawArrow(ctx, sx, sy, x, y); }
-    }
-  };
+  //     if (tool === "line") { ctx.moveTo(sx,sy); ctx.lineTo(x,y); ctx.stroke(); }
+  //     else if (tool === "rect") { ctx.strokeRect(sx, sy, x-sx, y-sy); }
+  //     else if (tool === "circle") {
+  //       const rx = Math.abs(x-sx)/2, ry = Math.abs(y-sy)/2;
+  //       ctx.ellipse(sx+(x-sx)/2, sy+(y-sy)/2, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+  //     }
+  //     else if (tool === "arrow") { drawArrow(ctx, sx, sy, x, y); }
+  //   }
+  // };
 
-  const handlePointerUp = () => {
-    if (!drawingRef.current) return;
-    drawingRef.current = false;
-    setDimensions(null); // Clear dimensions
-    getCtx()!.globalAlpha = 1;
-    saveState();
-  };
+  // const handlePointerUp = () => {
+  //   if (!drawingRef.current) return;
+  //   drawingRef.current = false;
+  //   setDimensions(null); // Clear dimensions
+  //   getCtx()!.globalAlpha = 1;
+  //   saveState();
+  // };
 
   useEffect(() => {
     const c = canvasRef.current; if (!c) return;
