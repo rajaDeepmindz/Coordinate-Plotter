@@ -258,7 +258,7 @@ export function ControlsBar({
           {/* AREA card */}
           {areaAbsMax > 0 ? (
             <FilterSliderCard
-              label="AREA"
+              label="MASK AREA"
               labelColor="#15803d"
               colorStart="#22c55e"
               colorEnd="#16a34a"
@@ -289,7 +289,7 @@ export function ControlsBar({
             setBBoxSizeMin &&
             setBBoxSizeMax && (
               <FilterSliderCard
-                label="SIZE"
+                label="B BOX SIZE"
                 labelColor="#d97706"
                 colorStart="#fb923c"
                 colorEnd="#f97316"
